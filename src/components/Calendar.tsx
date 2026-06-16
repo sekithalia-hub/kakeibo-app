@@ -60,23 +60,17 @@ const groupTransactionsByDay = (
   return map;
 };
 
-const getDots = (
-  types: Transaction["type"][]
-): { income: boolean; expense: boolean } => {
-  return {
-    income: types.includes("income"),
-    expense:
-      types.includes("expense") ||
-      types.includes("transfer") ||
-      types.includes("savings_deposit"),
-  };
-};
 
 const Calendar = ({ year, month, transactions, selectedDay, onDayClick, onPrevMonth, onNextMonth }: CalendarProps) => {
   const days = buildCalendarDays(year, month);
-  const txByDay = groupTransactionsByDay(transactions, year, month); // ✅ 追加
-  const today = new Date();
-  const isToday = (day: number) =>
+
+  const txByDay = groupTransactionsByDay(
+    transactions,
+    year,
+    month
+  );
+
+  const today = new Date();  const isToday = (day: number) =>
     today.getFullYear() === year &&
     today.getMonth() === month &&
     today.getDate() === day;
@@ -122,7 +116,7 @@ const Calendar = ({ year, month, transactions, selectedDay, onDayClick, onPrevMo
 
         const dow = index % 7;
         const todayFlag = isToday(day);
-
+        const types = txByDay[day] ?? [];
         return (
           <div key={day} style={styles.cell}>
             <div
@@ -149,7 +143,19 @@ const Calendar = ({ year, month, transactions, selectedDay, onDayClick, onPrevMo
               >
                 {day}
               </div>
+              <div style={styles.dotRow}>
+               {types.includes("income") && (
+               <span style={styles.dotGreen}></span>
+                )}
+
+                {(types.includes("expense") ||
+                  types.includes("transfer") ||
+                  types.includes("savings_deposit")) && (
+                  <span style={styles.dotRed}></span>
+                )}
+              </div>
           </div>
+          
         );
       })}
     </div>
