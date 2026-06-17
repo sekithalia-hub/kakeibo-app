@@ -50,6 +50,7 @@ const TransactionEditPage = ({
 
   const handleSave = () => {
     const num = Number(amount);
+    console.log("保存クリック");
     if (isNaN(num) || num <= 0) {
       setError("金額は1以上の数値を入力してください");
       return;

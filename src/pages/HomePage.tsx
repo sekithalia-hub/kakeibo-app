@@ -16,7 +16,7 @@ type HomePageProps = {
   onEnvelopeClick: (id: string) => void;
   onSavingsGoalClick: (id: string) => void;
   onCalendarClick: () => void;
-  onAnalyticsClick: () => void;      // ✅ 追加
+  onAnalyticsClick: () => void;
   onTransactionClick: (id: string) => void;
   onAddEnvelope: (name: string, balance: number, color: string) => void;
   onAddSavingsGoal: (
@@ -26,6 +26,7 @@ type HomePageProps = {
     deadline: string | null
   ) => void;
   onTransfer: (fromId: string, toId: string, amount: number, memo: string) => void;
+  onSignOut: () => void;  // ✅ 追加
 };type ModalType = "addEnvelope" | "addSavingsGoal" | "transfer" | null;
 
 const HomePage = ({
@@ -35,11 +36,12 @@ const HomePage = ({
   onEnvelopeClick,
   onSavingsGoalClick,
   onCalendarClick,
-  onAnalyticsClick,      // ✅ 追加
+  onAnalyticsClick,
   onTransactionClick,
   onAddEnvelope,
   onAddSavingsGoal,
   onTransfer,
+  onSignOut,  // ✅ 追加
 }: HomePageProps) => {  const [modal, setModal] = useState<ModalType>(null);
 
   // 全封筒の合計残高
@@ -72,6 +74,16 @@ const HomePage = ({
           <button style={styles.headerIconButton} onClick={onCalendarClick}>
             🗓
           </button>
+          <button
+  style={styles.headerIconButton}
+  onClick={() => {
+    if (window.confirm("ログアウトしてもよろしいですか？")) {
+      onSignOut();
+    }
+  }}
+>
+  🚪
+</button>
         </div>
       </div>
 

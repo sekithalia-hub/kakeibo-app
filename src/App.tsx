@@ -1,12 +1,15 @@
 import { useState } from "react";
 import { useAppState } from "./hooks/useAppState";
+import  { useAuth } from "./hooks/useAuth";           // ✅ 追加
+import AuthPage from "./pages/AuthPage";             // ✅ 追加
 import SetupPage from "./pages/SetupPage";
 import HomePage from "./pages/HomePage";
 import EnvelopeDetailPage from "./pages/EnvelopeDetailPage";
 import SavingsGoalDetailPage from "./pages/SavingsGoalDetailPage";
 import CalendarPage from "./pages/CalendarPage";
 import TransactionEditPage from "./pages/TransactionEditPage";
-import AnalyticsPage from "./pages/AnalyticsPage"; // ✅ 追加
+import AnalyticsPage from "./pages/AnalyticsPage";
+
 type Page =
   | { name: "home" }
   | { name: "envelopeDetail"; envelopeId: string }
@@ -34,9 +37,38 @@ function App() {
     editTransaction,    // ✅ 追加
     deleteTransaction,  // ✅ 追加
   } = useAppState();
+  // ✅ 追加：認証状態を管理
+  const { user, loading, errorMessage, signIn, signUp, signOut } = useAuth();
 
   const [currentPage, setCurrentPage] = useState<Page>({ name: "home" });
 
+
+  // ── ① 認証確認中（ローディング）────────────────────────────
+  // Supabase がセッションを確認している間はなにも表示しない
+  if (loading) {
+    return (
+      <div style={loadingStyles.container}>
+        <p style={loadingStyles.emoji}>💰</p>
+        <p style={loadingStyles.text}>読み込み中...</p>
+      </div>
+    );
+  }
+
+  // ── ② 未ログイン → AuthPage を表示 ──────────────────────────
+  // user が null のときは AuthPage のみ表示
+  // 既存のページコンポーネントは一切変更しない
+  if (user === null) {
+    return (
+      <AuthPage
+        onSignIn={signIn}
+        onSignUp={signUp}
+        errorMessage={errorMessage}
+      />
+    );
+  }
+
+  // ── ③ ログイン済み → 既存の画面フローへ ─────────────────────
+  // ここから下は既存コードのまま（変更なし）
   // ── 初回セットアップ判定 ──────────────────────────────────
   // setupCompleted が未保存 かつ 封筒・目的貯金が両方0件のときだけ表示
   const isSetupCompleted = localStorage.getItem(SETUP_KEY) === "true";
@@ -89,11 +121,12 @@ const goToTransactionEdit = (transactionId: string) =>
         onEnvelopeClick={goToEnvelopeDetail}
         onSavingsGoalClick={goToSavingsGoalDetail}
         onCalendarClick={goToCalendar}
-        onAnalyticsClick={goToAnalytics}      // ✅ 追加
+        onAnalyticsClick={goToAnalytics}
         onTransactionClick={goToTransactionEdit}
         onAddEnvelope={addEnvelope}
         onAddSavingsGoal={addSavingsGoal}
         onTransfer={transferBetweenEnvelopes}
+        onSignOut={signOut}   // ✅ 追加
       />
     );
   }
@@ -183,4 +216,24 @@ const goToTransactionEdit = (transactionId: string) =>
     );
   }
 }
+const loadingStyles: Record<string, React.CSSProperties> = {
+  container: {
+    maxWidth: "480px",
+    margin: "0 auto",
+    minHeight: "100vh",
+    backgroundColor: "#f5f5f5",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "12px",
+  },
+  emoji: {
+    fontSize: "48px",
+  },
+  text: {
+    fontSize: "16px",
+    color: "#aaa",
+  },
+};
 export default App;
