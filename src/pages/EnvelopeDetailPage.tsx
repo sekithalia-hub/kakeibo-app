@@ -6,6 +6,7 @@ import IncomeForm from "../components/IncomeForm";
 import ExpenseForm from "../components/ExpenseForm";
 import EnvelopeForm from "../components/EnvelopeForm";
 import TransactionItem from "../components/TransactionItem";
+import TransferForm from "../components/TransferForm";
 
 type EnvelopeDetailPageProps = {
   envelope: Envelope;
@@ -15,10 +16,21 @@ type EnvelopeDetailPageProps = {
   onAddExpense: (envelopeId: string, amount: number, memo: string) => void;
   onEditEnvelope: (id: string, name: string, color: string) => void;
   onDeleteEnvelope: (id: string) => void;
+  onTransfer: (
+  fromId: string,
+  toId: string,
+  amount: number,
+  memo: string
+) => void;
+envelopes: Envelope[];
 };
 
-type ModalType = "income" | "expense" | "edit" | null;
-
+type ModalType =
+  | "income"
+  | "expense"
+  | "edit"
+  | "transfer"
+  | null;
 const EnvelopeDetailPage = ({
   envelope,
   transactions,
@@ -27,6 +39,8 @@ const EnvelopeDetailPage = ({
   onAddExpense,
   onEditEnvelope,
   onDeleteEnvelope,
+  onTransfer,
+  envelopes,
 }: EnvelopeDetailPageProps) => {
   const [modal, setModal] = useState<ModalType>(null);
 
@@ -130,19 +144,38 @@ const EnvelopeDetailPage = ({
         </Modal>
       )}
 
-      {/* モーダル：封筒編集 */}
-      {modal === "edit" && (
-        <Modal title="封筒を編集" onClose={() => setModal(null)}>
-          <EnvelopeForm
-            initial={envelope}
-            onSubmit={(name, _balance, color) => {
-              onEditEnvelope(envelope.id, name, color);
-              setModal(null);
-            }}
-            onCancel={() => setModal(null)}
-          />
+      {/* モーダル：封筒間送金 */}
+      {modal === "transfer" && (
+         <Modal title="封筒間送金" onClose={() => setModal(null)}>
+           <TransferForm
+             envelopes={envelopes}
+             onSubmit={(fromId, toId, amount, memo) => {
+               onTransfer(
+                 fromId,
+                 toId,
+                 amount,
+                 memo
+          );
+             setModal(null);
+           }}
+          onCancel={() => setModal(null)}
+         />
         </Modal>
       )}
+
+      {/* モーダル：封筒編集 */}
+      {modal === "edit" && (
+       <Modal title="封筒を編集" onClose={() => setModal(null)}>
+        <EnvelopeForm
+         initial={envelope}
+         onSubmit={(name, _balance, color) => {
+           onEditEnvelope(envelope.id, name, color);
+           setModal(null);
+          }}
+          onCancel={() => setModal(null)}
+       />
+     </Modal>
+)}
     </div>
   );
 };
