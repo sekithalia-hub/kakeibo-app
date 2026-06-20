@@ -140,14 +140,16 @@ const goToTransactionEdit = (transactionId: string) =>
     }
     return (
       <EnvelopeDetailPage
-        envelope={envelope}
-        transactions={transactions}
-        onBack={goToHome}
-        onAddIncome={addIncome}
-        onAddExpense={addExpense}
-        onEditEnvelope={editEnvelope}
-        onDeleteEnvelope={deleteEnvelope}
-      />
+  envelope={envelope}
+  transactions={transactions}
+  onBack={goToHome}
+  onAddIncome={addIncome}
+  onAddExpense={addExpense}
+  onEditEnvelope={editEnvelope}
+  onDeleteEnvelope={deleteEnvelope}
+  onTransfer={transferBetweenEnvelopes}
+  envelopes={envelopes}
+/>
     );
   }
 
