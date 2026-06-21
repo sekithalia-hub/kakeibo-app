@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { Envelope, SavingsGoal, Transaction, TransactionType } from "../types";
 import { generateId } from "../utils";
 import { supabase } from "../lib/supabase";
@@ -22,26 +22,29 @@ import {
   deleteTransactionById,
 } from "../lib/transactionApi";
 
-// ── ユーザーIDを取得するヘルパー ──────────────────────────────
-const getUserId = async (): Promise<string | null> => {
-  const { data: { session } } = await supabase.auth.getSession();
-  return session?.user.id ?? null;
-};
-
 export const useAppState = () => {
   const [envelopes, setEnvelopes] = useState<Envelope[]>([]);
   const [savingsGoals, setSavingsGoals] = useState<SavingsGoal[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-
-  // ローディングフラグ
   const [envLoading, setEnvLoading] = useState(true);
   const [goalsLoading, setGoalsLoading] = useState(true);
   const [txLoading, setTxLoading] = useState(true);
 
-  // ── 初回データ取得 ────────────────────────────────────────
+  // ── 修正ポイント①：userId を useRef でキャッシュ ─────────────
+  // 変更前：操作のたびに supabase.auth.getSession() を毎回呼んでいた
+  //         → 非同期処理が毎回走りパフォーマンスが低下
+  // 変更後：初回取得した userId を useRef に保持して使い回す
+  const userIdRef = useRef<string | null>(null);
+
+  // ── 初回データ取得 ────────────────────────────────────────────
   useEffect(() => {
     const loadAll = async () => {
-      const userId = await getUserId();
+      const { data: { session } } = await supabase.auth.getSession();
+      const userId = session?.user.id ?? null;
+
+      // userId を ref にキャッシュ
+      userIdRef.current = userId;
+
       if (!userId) {
         setEnvLoading(false);
         setGoalsLoading(false);
@@ -49,11 +52,14 @@ export const useAppState = () => {
         return;
       }
 
-      // 3つを並行して取得する（順番を待たずに同時に取得）
+      // ── 修正ポイント②：3つを並行取得（変更なし・維持） ────────
       const [envData, goalsData, txData] = await Promise.all([
         fetchEnvelopes(),
         fetchSavingsGoals(),
-        fetchTransactions(),
+        // ── 修正ポイント③：最新100件のみ取得 ──────────────────
+        // 変更前：件数無制限で全件取得していた
+        // 変更後：最新100件に制限することで初回取得を高速化
+        fetchTransactions(100),
       ]);
 
       setEnvelopes(envData);
@@ -67,7 +73,7 @@ export const useAppState = () => {
     loadAll();
   }, []);
 
-  // ── 取引追加の内部ヘルパー ───────────────────────────────
+  // ── 取引追加の内部ヘルパー ────────────────────────────────────
   const addTransaction = async (
     type: TransactionType,
     amount: number,
@@ -80,7 +86,8 @@ export const useAppState = () => {
       savingsGoalId?: string;
     }
   ) => {
-    const userId = await getUserId();
+    // ── 修正ポイント①の適用：ref からキャッシュを取得 ──────────
+    const userId = userIdRef.current;
     if (!userId) return;
 
     const newTransaction: Transaction = {
@@ -100,14 +107,14 @@ export const useAppState = () => {
     setTransactions((prev) => [newTransaction, ...prev]);
   };
 
-  // ── 封筒 ──────────────────────────────────────────────────
+  // ── 封筒 ──────────────────────────────────────────────────────
 
   const addEnvelope = async (
     name: string,
     balance: number,
     color: string
   ) => {
-    const userId = await getUserId();
+    const userId = userIdRef.current; // ← ref から取得
     if (!userId) return;
 
     const newEnvelope: Envelope = {
@@ -122,11 +129,7 @@ export const useAppState = () => {
     setEnvelopes((prev) => [...prev, newEnvelope]);
   };
 
-  const editEnvelope = async (
-    id: string,
-    name: string,
-    color: string
-  ) => {
+  const editEnvelope = async (id: string, name: string, color: string) => {
     await updateEnvelopeMeta(id, name, color);
     setEnvelopes((prev) =>
       prev.map((e) => (e.id === id ? { ...e, name, color } : e))
@@ -138,7 +141,7 @@ export const useAppState = () => {
     setEnvelopes((prev) => prev.filter((e) => e.id !== id));
   };
 
-  // ── 収入・支出 ────────────────────────────────────────────
+  // ── 収入・支出 ────────────────────────────────────────────────
 
   const addIncome = async (
     envelopeId: string,
@@ -155,9 +158,7 @@ export const useAppState = () => {
         e.id === envelopeId ? { ...e, balance: newBalance } : e
       )
     );
-    await addTransaction("income", amount, memo, envelope.name, {
-      envelopeId,
-    });
+    await addTransaction("income", amount, memo, envelope.name, { envelopeId });
   };
 
   const addExpense = async (
@@ -176,12 +177,10 @@ export const useAppState = () => {
         e.id === envelopeId ? { ...e, balance: newBalance } : e
       )
     );
-    await addTransaction("expense", amount, memo, envelope.name, {
-      envelopeId,
-    });
+    await addTransaction("expense", amount, memo, envelope.name, { envelopeId });
   };
 
-  // ── 封筒間送金 ────────────────────────────────────────────
+  // ── 封筒間送金 ────────────────────────────────────────────────
 
   const transferBetweenEnvelopes = async (
     fromId: string,
@@ -215,7 +214,7 @@ export const useAppState = () => {
     );
   };
 
-  // ── 目的貯金 ──────────────────────────────────────────────
+  // ── 目的貯金 ──────────────────────────────────────────────────
 
   const addSavingsGoal = async (
     name: string,
@@ -223,7 +222,7 @@ export const useAppState = () => {
     currentAmount: number,
     deadline: string | null
   ) => {
-    const userId = await getUserId();
+    const userId = userIdRef.current; // ← ref から取得
     if (!userId) return;
 
     const newGoal: SavingsGoal = {
@@ -279,7 +278,7 @@ export const useAppState = () => {
     );
   };
 
-  // ── 取引編集・削除 ────────────────────────────────────────
+  // ── 取引編集・削除 ────────────────────────────────────────────
 
   const editTransaction = async (
     id: string,
@@ -296,7 +295,6 @@ export const useAppState = () => {
     const envelope = envelopes.find((e) => e.id === tx.envelopeId);
     if (!envelope) return;
 
-    // 旧取引の効果を打ち消して新取引の効果を適用
     let newBalance = envelope.balance;
     if (tx.type === "income")  newBalance -= tx.amount;
     if (tx.type === "expense") newBalance += tx.amount;
@@ -344,30 +342,22 @@ export const useAppState = () => {
     setTransactions((prev) => prev.filter((t) => t.id !== id));
   };
 
-  // ── return ────────────────────────────────────────────────
   return {
-    // 状態
     envelopes,
     savingsGoals,
     transactions,
-    // ローディング
     envLoading,
     goalsLoading,
     txLoading,
-    // 封筒
     addEnvelope,
     editEnvelope,
     deleteEnvelope,
-    // 収支
     addIncome,
     addExpense,
-    // 送金
     transferBetweenEnvelopes,
-    // 目的貯金
     addSavingsGoal,
     deleteSavingsGoal,
     depositToSavingsGoal,
-    // 取引編集・削除
     editTransaction,
     deleteTransaction,
   };

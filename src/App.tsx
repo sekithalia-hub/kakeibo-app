@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useAppState } from "./hooks/useAppState";
 import  { useAuth } from "./hooks/useAuth";           // ✅ 追加
 import AuthPage from "./pages/AuthPage";             // ✅ 追加
@@ -94,23 +94,27 @@ function App() {
     return <SetupPage onComplete={handleSetupComplete} />;
   }
 
-  const goToHome = () => setCurrentPage({ name: "home" });
-
-const goToEnvelopeDetail = (envelopeId: string) =>
-  setCurrentPage({ name: "envelopeDetail", envelopeId });
-
-const goToSavingsGoalDetail = (savingsGoalId: string) =>
-  setCurrentPage({ name: "savingsGoalDetail", savingsGoalId });
-
-const goToCalendar = () =>
-  setCurrentPage({ name: "calendar" });
-
-const goToAnalytics = () =>
-  setCurrentPage({ name: "analytics" });
-
-const goToTransactionEdit = (transactionId: string) =>
-  setCurrentPage({ name: "transactionEdit", transactionId });
-
+const goToHome = useCallback(
+    () => setCurrentPage({ name: "home" }), []
+  );
+  const goToEnvelopeDetail = useCallback(
+    (envelopeId: string) =>
+      setCurrentPage({ name: "envelopeDetail", envelopeId }), []
+  );
+  const goToSavingsGoalDetail = useCallback(
+    (savingsGoalId: string) =>
+      setCurrentPage({ name: "savingsGoalDetail", savingsGoalId }), []
+  );
+  const goToCalendar = useCallback(
+    () => setCurrentPage({ name: "calendar" }), []
+  );
+  const goToAnalytics = useCallback(
+    () => setCurrentPage({ name: "analytics" }), []
+  );
+  const goToTransactionEdit = useCallback(
+    (transactionId: string) =>
+      setCurrentPage({ name: "transactionEdit", transactionId }), []
+  );
   // ── ホーム画面 ────────────────────────────────────────────
   if (currentPage.name === "home") {
     return (

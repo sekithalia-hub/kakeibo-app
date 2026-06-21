@@ -34,12 +34,17 @@ const toRow = (tx: Transaction, userId: string) => ({
 
 // ── CRUD ─────────────────────────────────────────────────────
 
-/** 自分の取引を全件取得（新しい順） */
-export const fetchTransactions = async (): Promise<Transaction[]> => {
+/** 自分の取引を取得（新しい順・件数制限あり） */
+export const fetchTransactions = async (
+  limit = 100  // ← デフォルト100件
+): Promise<Transaction[]> => {
   const { data, error } = await supabase
     .from("transactions")
     .select("*")
-    .order("date", { ascending: false });
+    .order("date", { ascending: false })
+    .limit(limit); // ← 追加
+
+  
 
   if (error) {
     console.error("fetchTransactions error:", error.message);

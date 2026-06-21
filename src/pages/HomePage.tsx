@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import type { Envelope, SavingsGoal, Transaction } from "../types";
 import { formatAmount, isCurrentMonth } from "../utils";
 import EnvelopeCard from "../components/EnvelopeCard";
@@ -48,19 +48,25 @@ const HomePage = ({
   const totalBalance = envelopes.reduce((sum, e) => sum + e.balance, 0);
 
   // 今月の収入・支出サマリー
-  const currentMonthTransactions = transactions.filter((tx) =>
-    isCurrentMonth(tx.date)
-  );
-  const monthlyIncome = currentMonthTransactions
-    .filter((tx) => tx.type === "income")
-    .reduce((sum, tx) => sum + tx.amount, 0);
-  const monthlyExpense = currentMonthTransactions
-    .filter((tx) => tx.type === "expense")
-    .reduce((sum, tx) => sum + tx.amount, 0);
-  const monthlyBalance = monthlyIncome - monthlyExpense;
-
+  const { monthlyIncome, monthlyExpense, monthlyBalance, recentTransactions } =
+    useMemo(() => {
+      const currentMonth = transactions.filter((tx) =>
+        isCurrentMonth(tx.date)
+      );
+      const income = currentMonth
+        .filter((tx) => tx.type === "income")
+        .reduce((sum, tx) => sum + tx.amount, 0);
+      const expense = currentMonth
+        .filter((tx) => tx.type === "expense")
+        .reduce((sum, tx) => sum + tx.amount, 0);
+      return {
+        monthlyIncome: income,
+        monthlyExpense: expense,
+        monthlyBalance: income - expense,
+        recentTransactions: transactions.slice(0, 5),
+      };
+    }, [transactions]); // transactions が変わったときだけ再計算
   // 最近の取引（最新5件）
-  const recentTransactions = transactions.slice(0, 5);
 
   return (
     <div style={styles.container}>

@@ -1,47 +1,37 @@
+import { useMemo } from "react";
 import type { Transaction } from "../types";
 import { formatAmount } from "../utils";
 
+// ── 型定義 ────────────────────────────────────────────────────
 type AnalyticsPageProps = {
   transactions: Transaction[];
   onBack: () => void;
 };
 
-// カテゴリ別に使う色のプリセット
 const SLICE_COLORS = [
-  "#4A90E2",
-  "#F44336",
-  "#4CAF50",
-  "#FF9800",
-  "#9C27B0",
-  "#00BCD4",
-  "#FF5722",
-  "#607D8B",
-  "#E91E63",
-  "#795548",
+  "#4A90E2", "#F44336", "#4CAF50", "#FF9800", "#9C27B0",
+  "#00BCD4", "#FF5722", "#607D8B", "#E91E63", "#795548",
 ];
+
 type CategoryData = {
-  name: string;   // カテゴリ名（封筒名）
-  amount: number; // 合計金額
-  color: string;  // 表示色
-  percent: number;// 割合（0〜100）
+  name: string;
+  amount: number;
+  color: string;
+  percent: number;
 };
 
-/**
- * 当月の支出を封筒名（カテゴリ）ごとに集計する
- */
-const aggregateByCategory = (transactions: Transaction[]): CategoryData[] => {
-  const now = new Date();
-  const currentYear = now.getFullYear();
-  const currentMonth = now.getMonth();
-
-  // 当月の支出のみ絞り込む
+// ── 集計関数 ──────────────────────────────────────────────────
+const aggregateByCategory = (
+  transactions: Transaction[],
+  year: number,
+  month: number
+): CategoryData[] => {
   const monthlyExpenses = transactions.filter((tx) => {
     if (tx.type !== "expense") return false;
     const d = new Date(tx.date);
-    return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
+    return d.getFullYear() === year && d.getMonth() === month;
   });
 
-  // カテゴリ（relatedName）ごとに合計
   const map: Record<string, number> = {};
   monthlyExpenses.forEach((tx) => {
     const key = tx.relatedName || "その他";
@@ -51,7 +41,6 @@ const aggregateByCategory = (transactions: Transaction[]): CategoryData[] => {
   const total = Object.values(map).reduce((s, v) => s + v, 0);
   if (total === 0) return [];
 
-  // 金額降順でソートして返す
   return Object.entries(map)
     .sort((a, b) => b[1] - a[1])
     .map(([name, amount], i) => ({
@@ -61,28 +50,27 @@ const aggregateByCategory = (transactions: Transaction[]): CategoryData[] => {
       percent: Math.round((amount / total) * 100),
     }));
 };
+
+// ── 修正ポイント：PieChart をファイルの外側に切り出す ──────────
+// 変更前：AnalyticsPage の中に定義されていた
+//         → 親が再レンダリングするたびに PieChart が再定義された
+// 変更後：外に出すことで再定義されなくなる
 type PieChartProps = {
   data: CategoryData[];
 };
 
-/**
- * SVGで円グラフを描画する
- * 極座標 → デカルト座標への変換を使ってスライスを描画する
- */
 const PieChart = ({ data }: PieChartProps) => {
-  const SIZE = 200;       // SVGの幅・高さ
-  const cx = SIZE / 2;   // 中心X
-  const cy = SIZE / 2;   // 中心Y
-  const r = 70;          // 半径
-  const innerR = 0;     // 内側の半径（ドーナツ型にする）
+  const SIZE = 200;
+  const cx = SIZE / 2;
+  const cy = SIZE / 2;
+  const r = 80;
+  const innerR = 44;
 
-  // 角度（ラジアン）から座標を計算するヘルパー
   const toXY = (angle: number, radius: number) => ({
     x: cx + radius * Math.cos(angle),
     y: cy + radius * Math.sin(angle),
   });
 
-  // スライスのSVGパスを生成する
   const buildPath = (startAngle: number, endAngle: number): string => {
     const largeArc = endAngle - startAngle > Math.PI ? 1 : 0;
     const outer1 = toXY(startAngle, r);
@@ -98,29 +86,18 @@ const PieChart = ({ data }: PieChartProps) => {
     ].join(" ");
   };
 
-  // 各スライスの開始・終了角度を計算する
   const total = data.reduce((s, d) => s + d.amount, 0);
-  let currentAngle = -Math.PI / 2; // 12時の位置からスタート
+  let currentAngle = -Math.PI / 2;
 
   const slices = data.map((d) => {
-const sliceAngle =
-  data.length === 1
-    ? (2 * Math.PI) - 0.001
-    : (d.amount / total) * 2 * Math.PI;  const startAngle = currentAngle;
-  const endAngle = currentAngle + sliceAngle;
-  currentAngle = endAngle;
+    const sliceAngle = (d.amount / total) * 2 * Math.PI;
+    const startAngle = currentAngle;
+    const endAngle = currentAngle + sliceAngle;
+    currentAngle = endAngle;
+    return { ...d, path: buildPath(startAngle, endAngle) };
+  });
 
-  return {
-    ...d,
-    path: buildPath(startAngle, endAngle),
-  };
-});
-console.log("slices", slices);
-
-console.log(data);
-console.log(slices);
-
-return (
+  return (
     <svg
       width={SIZE}
       height={SIZE}
@@ -136,19 +113,11 @@ return (
           strokeWidth={2}
         />
       ))}
-      {/* 中央に「支出」ラベル */}
-      <text
-        x={cx}
-        y={cy - 6}
-        textAnchor="middle"
-        fontSize={12}
-        fill="#rgba(255,255,255,0.8)"
-      >
+      <text x={cx} y={cy - 6} textAnchor="middle" fontSize={12} fill="#888">
         支出合計
       </text>
       <text
-        x={cx}
-        y={cy + 14}
+        x={cx} y={cy + 14}
         textAnchor="middle"
         fontSize={13}
         fontWeight="bold"
@@ -159,30 +128,34 @@ return (
     </svg>
   );
 };
-const AnalyticsPage = ({ transactions, onBack }: AnalyticsPageProps) => {
-  const data = aggregateByCategory(transactions);
 
-  // 当月ラベル
+// ── AnalyticsPage 本体 ────────────────────────────────────────
+const AnalyticsPage = ({ transactions, onBack }: AnalyticsPageProps) => {
   const now = new Date();
-  const monthLabel = `${now.getFullYear()}年${now.getMonth() + 1}月`;
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const monthLabel = `${year}年${month + 1}月`;
+
+  // ── 修正ポイント：useMemo で集計をメモ化 ──────────────────────
+  // 変更前：レンダリングのたびに aggregateByCategory が再実行されていた
+  // 変更後：transactions が変わったときだけ再計算する
+  const data = useMemo(
+    () => aggregateByCategory(transactions, year, month),
+    [transactions, year, month]
+  );
 
   return (
     <div style={styles.container}>
-      {/* ヘッダー */}
       <div style={styles.header}>
-        <button style={styles.backButton} onClick={onBack}>
-          ← 戻る
-        </button>
+        <button style={styles.backButton} onClick={onBack}>← 戻る</button>
         <h1 style={styles.headerTitle}>支出分析</h1>
         <div style={{ width: "48px" }} />
       </div>
 
       <div style={styles.content}>
-        {/* 月ラベル */}
         <p style={styles.monthLabel}>📊 {monthLabel}の支出内訳</p>
 
         {data.length === 0 ? (
-          // データなし
           <div style={styles.emptyCard}>
             <p style={styles.emptyIcon}>📭</p>
             <p style={styles.emptyText}>今月の支出データがありません</p>
@@ -192,27 +165,20 @@ const AnalyticsPage = ({ transactions, onBack }: AnalyticsPageProps) => {
           </div>
         ) : (
           <>
-            {/* 円グラフ */}
             <div style={styles.chartCard}>
               <PieChart data={data} />
             </div>
-
-            {/* 凡例リスト */}
             <div style={styles.legendCard}>
               {data.map((item) => (
                 <div key={item.name} style={styles.legendRow}>
-                  {/* カラーバッジ */}
                   <span
                     style={{
                       ...styles.legendDot,
                       backgroundColor: item.color,
                     }}
                   />
-                  {/* カテゴリ名 */}
                   <span style={styles.legendName}>{item.name}</span>
-                  {/* パーセント */}
                   <span style={styles.legendPercent}>{item.percent}%</span>
-                  {/* 金額 */}
                   <span style={styles.legendAmount}>
                     {formatAmount(item.amount)}
                   </span>
@@ -287,7 +253,7 @@ const styles: Record<string, React.CSSProperties> = {
   chartCard: {
     backgroundColor: "#fff",
     borderRadius: "12px",
-    padding: "16px",
+    padding: "24px 16px",
     boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
   },
   legendCard: {
@@ -317,17 +283,15 @@ const styles: Record<string, React.CSSProperties> = {
   legendPercent: {
     fontSize: "13px",
     color: "#888",
-    width: "60px",
-    textAlign: "center",
-    flexShrink: 0,
+    width: "36px",
+    textAlign: "right",
   },
   legendAmount: {
     fontSize: "14px",
     fontWeight: "bold",
     color: "#333",
-    width: "90px",
+    width: "80px",
     textAlign: "right",
-    flexShrink: 0,
   },
 };
 
