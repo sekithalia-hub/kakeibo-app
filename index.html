@@ -1,10 +1,41 @@
 <!doctype html>
-<html lang="en">
+<html lang="ja">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+    <!-- ビューポート設定（スマホ表示の基本設定） -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>envelope-app</title>
+
+    <!-- テーマカラー（ブラウザのアドレスバーの色） -->
+    <meta name="theme-color" content="#4A90E2" />
+
+    <!-- アプリの説明 -->
+    <meta name="description" content="封筒ごとにお金を管理するシンプルな家計簿アプリ" />
+
+    <!-- ========================================
+         iPhone（iOS Safari）向けの設定
+         ======================================== -->
+
+    <!-- ホーム画面追加時にアプリのように全画面で起動する -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+
+    <!-- ステータスバーの色（black-translucent = 半透明の黒） -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+    <!-- ホーム画面に追加したときのアプリ名 -->
+    <meta name="apple-mobile-web-app-title" content="家計簿" />
+
+    <!-- iPhone 向けアイコン -->
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+
+    <!-- ========================================
+         Android / その他向けの設定
+         ======================================== -->
+
+    <!-- ファビコン -->
+    <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
+
+    <title>封筒かんたん家計簿</title>
   </head>
   <body>
     <div id="root"></div>
