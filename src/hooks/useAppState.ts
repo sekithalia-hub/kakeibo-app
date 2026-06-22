@@ -53,20 +53,22 @@ export const useAppState = () => {
       }
 
       // ── 修正ポイント②：3つを並行取得（変更なし・維持） ────────
-      const [envData, goalsData, txData] = await Promise.all([
-        fetchEnvelopes(),
-        fetchSavingsGoals(),
-        // ── 修正ポイント③：最新100件のみ取得 ──────────────────
-        // 変更前：件数無制限で全件取得していた
-        // 変更後：最新100件に制限することで初回取得を高速化
-        fetchTransactions(100),
-      ]);
+      const [envData, goalsData] = await Promise.all([
+  fetchEnvelopes(),
+  fetchSavingsGoals(),
+]);
+
+const txData = await fetchTransactions(30);
 
       setEnvelopes(envData);
       setSavingsGoals(goalsData);
-      setTransactions(txData);
+
+// ここで一度表示可能にする
       setEnvLoading(false);
       setGoalsLoading(false);
+
+// transactionsは後から反映
+      setTransactions(txData);
       setTxLoading(false);
     };
 

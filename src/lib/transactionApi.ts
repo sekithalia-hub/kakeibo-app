@@ -36,7 +36,7 @@ const toRow = (tx: Transaction, userId: string) => ({
 
 /** 自分の取引を取得（新しい順・件数制限あり） */
 export const fetchTransactions = async (
-  limit = 100  // ← デフォルト100件
+  limit = 30  // ← デフォルト30件
 ): Promise<Transaction[]> => {
   const { data, error } = await supabase
     .from("transactions")

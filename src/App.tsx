@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import { useAppState } from "./hooks/useAppState";
-import  { useAuth } from "./hooks/useAuth";           // ✅ 追加
-import AuthPage from "./pages/AuthPage";             // ✅ 追加
+import { useAuth } from "./hooks/useAuth";
+import AuthPage from "./pages/AuthPage";
 import SetupPage from "./pages/SetupPage";
 import HomePage from "./pages/HomePage";
 import EnvelopeDetailPage from "./pages/EnvelopeDetailPage";
@@ -16,8 +16,8 @@ type Page =
   | { name: "savingsGoalDetail"; savingsGoalId: string }
   | { name: "calendar" }
   | { name: "transactionEdit"; transactionId: string }
-  | { name: "analytics" }; // ✅ 追加
-// セットアップ完了フラグの LocalStorage キー
+  | { name: "analytics" };
+
 const SETUP_KEY = "setupCompleted";
 
 function App() {
@@ -34,67 +34,16 @@ function App() {
     addSavingsGoal,
     deleteSavingsGoal,
     depositToSavingsGoal,
-    editTransaction,    // ✅ 追加
-    deleteTransaction,  // ✅ 追加
+    editTransaction,
+    deleteTransaction,
   } = useAppState();
-  // ✅ 追加：認証状態を管理
+
   const { user, loading, errorMessage, signIn, signUp, signOut } = useAuth();
 
   const [currentPage, setCurrentPage] = useState<Page>({ name: "home" });
 
-
-  // ── ① 認証確認中（ローディング）────────────────────────────
-  // Supabase がセッションを確認している間はなにも表示しない
-  if (loading) {
-    return (
-      <div style={loadingStyles.container}>
-        <p style={loadingStyles.emoji}>💰</p>
-        <p style={loadingStyles.text}>読み込み中...</p>
-      </div>
-    );
-  }
-
-  // ── ② 未ログイン → AuthPage を表示 ──────────────────────────
-  // user が null のときは AuthPage のみ表示
-  // 既存のページコンポーネントは一切変更しない
-  if (user === null) {
-    return (
-      <AuthPage
-        onSignIn={signIn}
-        onSignUp={signUp}
-        errorMessage={errorMessage}
-      />
-    );
-  }
-
-  // ── ③ ログイン済み → 既存の画面フローへ ─────────────────────
-  // ここから下は既存コードのまま（変更なし）
-  // ── 初回セットアップ判定 ──────────────────────────────────
-  // setupCompleted が未保存 かつ 封筒・目的貯金が両方0件のときだけ表示
-  const isSetupCompleted = localStorage.getItem(SETUP_KEY) === "true";
-  const isFirstVisit =
-    !isSetupCompleted &&
-    envelopes.length === 0 &&
-    savingsGoals.length === 0;
-
-  // セットアップ完了ハンドラー
-  const handleSetupComplete = (
-    templateEnvelopes: { name: string; color: string }[]
-  ) => {
-    // テンプレートの封筒を一括作成（自分で作る場合は空配列なのでスキップ）
-    templateEnvelopes.forEach(({ name, color }) => {
-      addEnvelope(name, 0, color);
-    });
-    // セットアップ完了フラグを保存
-    localStorage.setItem(SETUP_KEY, "true");
-  };
-
-  // ── セットアップ画面 ──────────────────────────────────────
-  if (isFirstVisit) {
-    return <SetupPage onComplete={handleSetupComplete} />;
-  }
-
-const goToHome = useCallback(
+  // ── useCallback はすべての return より前に定義する ────────────
+  const goToHome = useCallback(
     () => setCurrentPage({ name: "home" }), []
   );
   const goToEnvelopeDetail = useCallback(
@@ -115,7 +64,50 @@ const goToHome = useCallback(
     (transactionId: string) =>
       setCurrentPage({ name: "transactionEdit", transactionId }), []
   );
-  // ── ホーム画面 ────────────────────────────────────────────
+
+  // ── セットアップ完了ハンドラー ────────────────────────────────
+  const handleSetupComplete = (
+    templateEnvelopes: { name: string; color: string }[]
+  ) => {
+    templateEnvelopes.forEach(({ name, color }) => {
+      addEnvelope(name, 0, color);
+    });
+    localStorage.setItem(SETUP_KEY, "true");
+  };
+
+  // ── ① 認証確認中 ─────────────────────────────────────────────
+  if (loading) {
+    return (
+      <div style={loadingStyles.container}>
+        <p style={loadingStyles.emoji}>💰</p>
+        <p style={loadingStyles.text}>読み込み中...</p>
+      </div>
+    );
+  }
+
+  // ── ② 未ログイン ─────────────────────────────────────────────
+  if (user === null) {
+    return (
+      <AuthPage
+        onSignIn={signIn}
+        onSignUp={signUp}
+        errorMessage={errorMessage}
+      />
+    );
+  }
+
+  // ── ③ 初回セットアップ ───────────────────────────────────────
+  const isSetupCompleted = localStorage.getItem(SETUP_KEY) === "true";
+  const isFirstVisit =
+    !isSetupCompleted &&
+    envelopes.length === 0 &&
+    savingsGoals.length === 0;
+
+  if (isFirstVisit) {
+    return <SetupPage onComplete={handleSetupComplete} />;
+  }
+
+  // ── ページ表示 ────────────────────────────────────────────────
   if (currentPage.name === "home") {
     return (
       <HomePage
@@ -130,18 +122,14 @@ const goToHome = useCallback(
         onAddEnvelope={addEnvelope}
         onAddSavingsGoal={addSavingsGoal}
         onTransfer={transferBetweenEnvelopes}
-        onSignOut={signOut}   // ✅ 追加
+        onSignOut={signOut}
       />
     );
   }
 
-  // ── 封筒詳細画面 ──────────────────────────────────────────
   if (currentPage.name === "envelopeDetail") {
     const envelope = envelopes.find((e) => e.id === currentPage.envelopeId);
-    if (!envelope) {
-      goToHome();
-      return null;
-    }
+    if (!envelope) { goToHome(); return null; }
     return (
       <EnvelopeDetailPage
   envelope={envelope}
@@ -151,21 +139,15 @@ const goToHome = useCallback(
   onAddExpense={addExpense}
   onEditEnvelope={editEnvelope}
   onDeleteEnvelope={deleteEnvelope}
-  onTransfer={transferBetweenEnvelopes}
-  envelopes={envelopes}
+  onTransfer={transferBetweenEnvelopes} // 追加
+  envelopes={envelopes}                 // 追加
 />
     );
   }
 
-  // ── 目的貯金詳細画面 ──────────────────────────────────────
   if (currentPage.name === "savingsGoalDetail") {
-    const goal = savingsGoals.find(
-      (g) => g.id === currentPage.savingsGoalId
-    );
-    if (!goal) {
-      goToHome();
-      return null;
-    }
+    const goal = savingsGoals.find((g) => g.id === currentPage.savingsGoalId);
+    if (!goal) { goToHome(); return null; }
     return (
       <SavingsGoalDetailPage
         goal={goal}
@@ -178,25 +160,21 @@ const goToHome = useCallback(
     );
   }
 
-// ── カレンダー画面 ✅ 追加 ────────────────────────────────
   if (currentPage.name === "calendar") {
     return (
       <CalendarPage
-        transactions={transactions}  // ✅ 追加
+        transactions={transactions}
         onBack={goToHome}
-        onTransactionClick={goToTransactionEdit}  // ✅ 追加
+        onTransactionClick={goToTransactionEdit}
       />
     );
   }
-  // ── 取引編集画面 ✅ 追加 ──────────────────────────────────
+
   if (currentPage.name === "transactionEdit") {
     const transaction = transactions.find(
       (t) => t.id === currentPage.transactionId
     );
-    if (!transaction) {
-      goToHome();
-      return null;
-    }
+    if (!transaction) { goToHome(); return null; }
     return (
       <TransactionEditPage
         transaction={transaction}
@@ -212,7 +190,7 @@ const goToHome = useCallback(
       />
     );
   }
-  // ── 支出分析画面 ✅ 追加 ──────────────────────────────────
+
   if (currentPage.name === "analytics") {
     return (
       <AnalyticsPage
@@ -222,6 +200,8 @@ const goToHome = useCallback(
     );
   }
 }
+
+// ── ローディング画面のスタイル ────────────────────────────────
 const loadingStyles: Record<string, React.CSSProperties> = {
   container: {
     maxWidth: "480px",
@@ -242,4 +222,5 @@ const loadingStyles: Record<string, React.CSSProperties> = {
     color: "#aaa",
   },
 };
+
 export default App;
